@@ -1,8 +1,8 @@
 #include <Arduino.h>
 
+#include "STA_network.h"
 #include "camera.h"
 #include "glob.h"
-#include "network.h"
 #include "servers.h"
 
 void setup() {

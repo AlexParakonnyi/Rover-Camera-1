@@ -1,12 +1,12 @@
-#include "network.h"
+#include "STA_network.h"
 
 #include "secrets.h"
 
 // Настройки Wi-Fi (объявление)
 const char *ssid = WIFI_SSID;
 const char *password = WIFI_PASSWORD;
-IPAddress localIP(192, 168, 100, 133);
-IPAddress localGateway(192, 168, 100, 1);
+IPAddress localIP(192, 168, 4, 2);
+IPAddress localGateway(192, 168, 4, 1);
 IPAddress subnet(255, 255, 0, 0);
 
 // Инициализация Wi-Fi
