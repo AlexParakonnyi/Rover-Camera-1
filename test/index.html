@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>ESP32-CAM Stream</title>
+  </head>
+
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #222;
+    }
+
+    img {
+      /* width: 800px;
+      height: 600px; */
+      width: 100vw;
+      height: 100vh;
+      /* border-radius: 20px; */
+      display: block;
+      position: absolute;
+      z-index: -1;
+    }
+
+    .wrapper {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .edditional-panel {
+      width: 300px;
+      height: 300px;
+      border: 1px solid #ccc;
+      margin: 30px;
+    }
+    .joystick {
+      position: relative;
+      width: 300px;
+      height: 300px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: 1fr 1fr 1fr;
+      /* margin: 20px auto; */
+      background-color: rgba(0, 0, 0, 0.03);
+      border: 2px solid #ccc;
+      margin: 30px;
+      border-radius: 50%;
+      overflow: hidden;
+    }
+
+    .direction {
+      border: 1px solid #ccc;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      background-color: rgba(81, 110, 156, 0.5);
+      cursor: pointer;
+    }
+    .middle-vertical {
+      width: 80px;
+      height: 110px;
+    }
+
+    .middle-horizontal {
+      width: 110px;
+      height: 80px;
+    }
+
+    .corner {
+      width: 110px;
+      height: 110px;
+    }
+
+    .cwenter {
+      width: 80px;
+      height: 80px;
+    }
+
+    .ball {
+      border-radius: 50%;
+      border: 1px solid #ccc;
+      background-color: brown;
+      width: 80px;
+      height: 80px;
+      transition: all 0.1s ease;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+      background: rgba(75, 0, 130, 0.2); /* Полупрозрачный indigo */
+      backdrop-filter: blur(5px); /* Эффект размытия */
+      position: fixed;
+      width: 100%;
+      top: 0;
+      box-sizing: border-box;
+    }
+
+    /* Логотип (картонный ровер) */
+    .logo {
+      width: 60px;
+      height: 60px;
+      background: url("./123.png") no-repeat center/cover; /* Замените на свой логотип */
+    }
+
+    /* Надпись Rover в центре */
+    .title {
+      margin-left: 20px;
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Контейнер для индикатора зарядки */
+    .battery-indicator {
+      display: flex;
+      /* gap: 1px; */
+    }
+
+    /* Стили для квадратов индикатора */
+    .battery-square {
+      width: 10px;
+      height: 10px;
+      border: 1px solid #000;
+      transition: background-color 0.3s ease;
+    }
+
+    /* Классы для заполнения цветом */
+    .red {
+      background-color: rgba(230, 0, 0, 0.4);
+    }
+    .orange {
+      background-color: rgba(245, 133, 5, 0.4);
+    }
+    .yellow {
+      background-color: rgba(247, 243, 38, 0.4);
+    }
+    .green {
+      background-color: rgba(29, 215, 42, 0.4);
+    }
+
+    .lightning {
+      width: 40px;
+      height: 40px;
+      background: url("./lightning.png") no-repeat center/cover; /* Замените на свой логотип */
+    }
+
+    .battery-container {
+      display: flex;
+      align-items: center;
+      margin-right: 50px;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      margin-left: 50px;
+    }
+  </style>
+  <body>
+    <!-- <h1>ESP32-CAM Video Stream</h1> -->
+    <div class="wrapper">
+      <img id="stream" />
+      <header>
+        <div class="logo-container">
+          <!-- <div class="logo"></div> -->
+          <div class="title">Carboard Rover</div>
+        </div>
+        <div class="battery-container">
+          <!-- <div class="lightning" id="lightning"></div> -->
+          <div class="battery-indicator" id="battery">
+            <div class="battery-square" data-level="1"></div>
+            <div class="battery-square" data-level="2"></div>
+            <div class="battery-square" data-level="3"></div>
+            <div class="battery-square" data-level="4"></div>
+          </div>
+        </div>
+      </header>
+      <!-- <div class="joystick" id="joystick">
+        <div class="direction corner" id="nw"></div>
+        <div class="direction middle-vertical" id="n"></div>
+        <div class="direction corner" id="ne"></div>
+        <div class="direction middle-horizontal" id="w"></div>
+        <div class="direction center" id="center">
+          <div class="ball" id="ball"></div>
+        </div>
+        <div class="direction middle-horizontal" id="e"></div>
+        <div class="direction corner" id="sw"></div>
+        <div class="direction middle-vertical" id="s"></div>
+        <div class="direction corner" id="se"></div>
+      </div> -->
+      <!-- <div class="edditional-panel" id="edd_panel"></div> -->
+    </div>
+    <script>
+      // var wsControl = new WebSocket("ws://192.168.100.134:82/RoverControl");
+      // var wsCam = new WebSocket("ws://192.168.100.133:81");
+
+      // const IP = "192.168.100.134";
+      const IP_Camera = "192.168.100.133";
+      // const IP_Camera = "204.112.129.31";
+      // const IP = "204.112.129.31";
+
+      // var wsControl = new WebSocket(`ws://${IP}:8082/RoverControl`);
+      var wsCam = new WebSocket(`ws://${IP_Camera}:8081`);
+
+      console.log("HI");
+
+      var stream = document.getElementById("stream");
+
+      //remove joystick if touch doesn't support
+      // const joystickEl = document.getElementById("joystick");
+      // const eddPanelEl = document.getElementById("edd_panel");
+      // if (!checkTouchSupport()) {
+      //   joystickEl.style.display = "none";
+      //   eddPanelEl.style.display = "none";
+      // }
+
+      wsCam.binaryType = "blob";
+      wsCam.onopen = function () {
+        console.log("WebSocket CAM connected");
+      };
+      wsCam.onclose = function () {
+        console.log("WebSocket CAM closed");
+        setTimeout(function () {
+          location.reload();
+        }, 1000); // Переподключение
+      };
+      wsCam.onmessage = function (event) {
+        stream.src = URL.createObjectURL(event.data);
+      };
+      wsCam.onerror = function (err) {
+        console.error("WebSocket CAM error:", err);
+      };
+
+      // wsControl.binaryType = "blob";
+
+      // wsControl.onopen = function () {
+      //   console.log("WebSocket CONTROL connected");
+      // };
+      // wsControl.onmessage = function (event) {
+      //   // stream.src = URL.createObjectURL(event.data);
+      // };
+      // wsControl.onclose = function () {
+      //   console.log("WebSocket CONTROL closed");
+      //   setTimeout(function () {
+      //     location.reload();
+      //   }, 1000); // Переподключение
+      // };
+      // wsControl.onerror = function (err) {
+      //   console.error("WebSocket CONTROL error:", err);
+      // };
+
+      // function sendCommand(key, value) {
+      //   // Формируем JSON-объект
+      //   var data = {
+      //     key: key,
+      //     value: value,
+      //   };
+
+      //   console.log(data);
+      //   // Отправляем JSON как строку
+      //   wsControl.send(JSON.stringify(data));
+      // }
+
+      // // ______________________________________
+      // // Joystick
+      // function handleKeysDown(e) {
+      //   {
+      //     e.preventDefault();
+
+      //     // console.log("Key pressed: ", e.key);
+      //     switch (event.key.toLowerCase()) {
+      //       case "w": // Вверх
+      //         sendCommand("MoveCar", "n");
+      //         break;
+      //       case "s": // Вниз
+      //         sendCommand("MoveCar", "s");
+      //         break;
+      //       case "a": // Влево
+      //         sendCommand("MoveCar", "w");
+      //         break;
+      //       case "d": // Вправо
+      //         sendCommand("MoveCar", "e");
+      //         break;
+      //     }
+      //   }
+      // }
+      const a = 8;
+      // function handleKeysUp(e) {
+      //   event.preventDefault();
+
+      //   switch (e.key.toLowerCase()) {
+      //     case "w": // Вверх
+      //     case "s": // Вниз
+      //     case "a": // Влево
+      //     case "d": // Вправо
+      //       sendCommand("MoveCar", "stop");
+      //       break;
+      //   }
+      // }
+      // Обработчики клавиш
+      // document.addEventListener("keydown", (e) => handleKeysDown(e));
+
+      // document.addEventListener("keyup", (e) => handleKeysUp(e));
+
+      // function checkTouchSupport() {
+      //   let isTouchSupported = false;
+
+      //   // Метод 1: Проверка ontouchstart
+      //   if ("ontouchstart" in window) {
+      //     isTouchSupported = true;
+      //   }
+
+      //   // Метод 2: Проверка maxTouchPoints
+      //   if (navigator.maxTouchPoints > 0) {
+      //     isTouchSupported = true;
+      //   }
+
+      //   // Метод 3: Проверка медиа-запроса pointer
+      //   if (
+      //     window.matchMedia &&
+      //     window.matchMedia("(pointer: coarse)").matches
+      //   ) {
+      //     isTouchSupported = true;
+      //   }
+      //   return isTouchSupported;
+      // }
+
+      // // Автоматическая проверка при загрузке страницы
+      // window.onload = checkTouchSupport;
+
+      // const ball = document.getElementById("ball");
+      // const joystick = document.getElementById("joystick");
+
+      // function getAbsoluteCoordinates(element) {
+      //   const rect = element.getBoundingClientRect();
+      //   const scrollX =
+      //     window.pageXOffset || document.documentElement.scrollLeft;
+      //   const scrollY =
+      //     window.pageYOffset || document.documentElement.scrollTop;
+
+      //   return {
+      //     x: rect.left + scrollX,
+      //     y: rect.top + scrollY,
+      //     width: rect.width,
+      //     height: rect.height,
+      //   };
+      // }
+
+      // const ballCoords = getAbsoluteCoordinates(ball);
+      // let currentDroppable = null;
+
+      // // Общая функция для начала перетаскивания
+      // function startDragging(event) {
+      //   event.preventDefault(); // Предотвращаем стандартное поведение (выделение, скроллинг)
+
+      //   let shiftX, shiftY;
+
+      //   // Определяем координаты для мыши или касания
+      //   if (event.type === "mousedown") {
+      //     shiftX = event.clientX - ball.getBoundingClientRect().left;
+      //     shiftY = event.clientY - ball.getBoundingClientRect().top;
+      //   } else if (event.type === "touchstart") {
+      //     const touch = event.touches[0];
+      //     shiftX = touch.clientX - ball.getBoundingClientRect().left;
+      //     shiftY = touch.clientY - ball.getBoundingClientRect().top;
+      //   }
+
+      //   ball.style.position = "absolute";
+      //   ball.style.zIndex = 1000;
+      //   document.body.append(ball);
+
+      //   moveAt(event);
+
+      //   function moveAt(e) {
+      //     let pageX, pageY;
+      //     if (e.type.includes("mouse")) {
+      //       pageX = e.pageX;
+      //       pageY = e.pageY;
+      //     } else if (e.type.includes("touch")) {
+      //       const touch = e.touches[0];
+      //       pageX = touch.pageX;
+      //       pageY = touch.pageY;
+      //     }
+      //     ball.style.left = pageX - shiftX + "px";
+      //     ball.style.top = pageY - shiftY + "px";
+
+      //     // Ограничение движения внутри joystick
+      //     const joystickCoords = getAbsoluteCoordinates(joystick);
+      //     let newLeft = pageX - shiftX - joystickCoords.x;
+      //     let newTop = pageY - shiftY - joystickCoords.y;
+
+      //     if (newLeft < 0) newLeft = 0;
+      //     if (newTop < 0) newTop = 0;
+      //     if (newLeft > joystickCoords.width - ballCoords.width)
+      //       newLeft = joystickCoords.width - ballCoords.width;
+      //     if (newTop > joystickCoords.height - ballCoords.height)
+      //       newTop = joystickCoords.height - ballCoords.height;
+
+      //     ball.style.left = joystickCoords.x + newLeft + "px";
+      //     ball.style.top = joystickCoords.y + newTop + "px";
+      //   }
+
+      //   function onMove(e) {
+      //     e.preventDefault();
+      //     moveAt(e);
+
+      //     ball.hidden = true;
+      //     let elemBelow;
+      //     if (e.type.includes("mouse")) {
+      //       elemBelow = document.elementFromPoint(e.clientX, e.clientY);
+      //     } else if (e.type.includes("touch")) {
+      //       const touch = e.touches[0];
+      //       elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+      //     }
+      //     ball.hidden = false;
+
+      //     if (!elemBelow) return;
+
+      //     let droppableBelow = elemBelow.closest(".direction");
+      //     if (currentDroppable != droppableBelow) {
+      //       if (currentDroppable) leaveDroppable(currentDroppable);
+      //       currentDroppable = droppableBelow;
+      //       if (currentDroppable) enterDroppable(currentDroppable);
+      //     }
+      //   }
+
+      //   // Добавляем слушатели для мыши и касания
+      //   // document.addEventListener("mousemove", onMove);
+      //   document.addEventListener("touchmove", onMove, { passive: false });
+
+      //   // Остановка перетаскивания
+      //   function stopDragging() {
+      //     // document.removeEventListener("mousemove", onMove);
+      //     document.removeEventListener("touchmove", onMove);
+      //     const center = document.getElementById("center");
+      //     const centerCoords = getAbsoluteCoordinates(center);
+      //     ball.style.left =
+      //       centerCoords.x +
+      //       centerCoords.width / 2 -
+      //       ballCoords.width / 2 +
+      //       "px";
+      //     ball.style.top =
+      //       centerCoords.y +
+      //       centerCoords.height / 2 -
+      //       ballCoords.height / 2 +
+      //       "px";
+      //     sendCommand("MoveCar", "stop");
+      //     if (currentDroppable) leaveDroppable(currentDroppable);
+      //     currentDroppable = null;
+      //   }
+
+      //   ball.onmouseup = stopDragging;
+      //   ball.addEventListener("touchend", stopDragging);
+      //   ball.addEventListener("touchcancel", stopDragging);
+      // }
+
+      // // События мыши
+      // ball.onmousedown = startDragging;
+
+      // // События касания
+      // ball.addEventListener("touchstart", startDragging, { passive: false });
+
+      // ball.ondragstart = function () {
+      //   return false;
+      // };
+
+      // function enterDroppable(elem) {
+      //   if (elem.id === "center") return;
+      //   elem.style.background = "pink";
+      //   sendCommand("MoveCar", elem.id);
+      //   console.log("Enter on the field ", elem.id);
+      // }
+
+      // function leaveDroppable(elem) {
+      //   elem.style.background = "";
+      // }
+
+      // //_______________________________________________________
+      // // Функция для обновления индикатора зарядки
+      // function updateBattery(value) {
+      //   const val = Math.floor((value - 8) / 2);
+      //   const squares = document.querySelectorAll(".battery-square");
+      //   squares.forEach((square) => {
+      //     const level = parseInt(square.getAttribute("data-level"));
+      //     square.classList.remove("red", "orange", "yellow", "green");
+      //     if (level <= val) {
+      //       if (level === 1) {
+      //         setTimeout(() => {
+      //           square.classList.add("red");
+      //         }, 200);
+      //       } else if (level === 2) {
+      //         setTimeout(() => {
+      //           square.classList.add("orange");
+      //         }, 400);
+      //       } else if (level === 3) {
+      //         setTimeout(() => {
+      //           square.classList.add("yellow");
+      //         }, 600);
+      //       } else if (level === 4) {
+      //         setTimeout(() => {
+      //           square.classList.add("green");
+      //         }, 800);
+      //       }
+      //     }
+      //   });
+      // }
+
+      // function updateCharging(value) {
+      //   const lightning = document.getElementById("lightning");
+      //   if (value) {
+      //     lightning.style.display = "block";
+      //   } else {
+      //     lightning.style.display = "none";
+      //   }
+      // }
+
+      // async function getBatteryValue() {
+      //   try {
+      //     const response = await fetch(`http://${IP}:8083/battery`, {
+      //       method: "GET",
+      //       mode: "cors", // Явно указываем режим CORS
+      //       headers: {
+      //         "Content-Type": "application/json",
+      //       },
+      //     });
+      //     if (!response.ok) {
+      //       throw new Error(`HTTP error! Status: ${response.status}`);
+      //     }
+      //     const data = await response.json();
+      //     batteryValue = data.battery;
+      //     console.log("Battery: ", batteryValue);
+      //     updateBattery(batteryValue);
+      //   } catch (error) {
+      //     console.error("Ошибка при получении данных батареи:", error.message);
+      //   }
+      // }
+
+      // async function getCharging() {
+      //   try {
+      //     const response = await fetch(`http://${IP}:8083/charging`, {
+      //       method: "GET",
+      //       mode: "cors", // Явно указываем режим CORS
+      //       headers: {
+      //         "Content-Type": "application/json",
+      //       },
+      //     });
+      //     if (!response.ok) {
+      //       throw new Error(`HTTP error! Status: ${response.status}`);
+      //     }
+      //     const data = await response.json();
+      //     charging = data.charging;
+      //     // console.log("Charging: ", charging);
+      //     updateCharging(charging);
+      //   } catch (error) {
+      //     console.error("Ошибка при получении данных о зарядке:", error);
+      //   }
+      // }
+
+      // setTimeout(() => {
+      //   getBatteryValue();
+      //   getCharging();
+      // }, 0);
+
+      // // setTimeout(() => {
+      // //   updateBattery(16);
+      // // }, 1000);
+
+      // // setTimeout(() => {
+      // //   updateBattery(12);
+      // // }, 2000);
+
+      // // setTimeout(() => {
+      // //   updateBattery(8);
+      // // }, 3000);
+
+      // // setTimeout(() => {
+      // //   updateBattery(3);
+      // // }, 4000);
+
+      // setInterval(() => {
+      //   getBatteryValue();
+      // }, 120000);
+
+      // setInterval(() => {
+      //   getCharging();
+      // }, 1000);
+    </script>
+  </body>
+</html>
